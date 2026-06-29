@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path
-from . import views
+from core import views  # ← mudar de teste.views para core.views
 
 urlpatterns = [
     path("admin/", admin.site.urls),

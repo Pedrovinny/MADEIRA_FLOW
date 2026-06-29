@@ -1,21 +1,333 @@
 {% extends 'base.html' %}
 
-{% block title %}
-Início
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+    {# ── Filtros ─────────────────────────────────────────────── #}
+    <form method="get" class="card mb-4 p-3">
+        <div class="row g-3 align-items-end">
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold small">
+                    <i class="bi bi-geo-alt"></i> Estação
+                </label>
+                <select name="estacao" class="form-select form-select-sm">
+                    {% for regiao, estacoes in estacoes_por_regiao.items %}
+                    <optgroup label="{{ regiao }}">
+                        {% for codigo, nome in estacoes.items %}
+                        <option value="{{ codigo }}"
+                            {% if codigo == selecionada %}selected{% endif %}>
+                            {{ nome }}
+                        </option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-semibold small">
+                    <i class="bi bi-calendar-event"></i> Data Início
+                </label>
+                <input type="date" name="data_inicio" class="form-control form-control-sm"
+                       value="{{ data_inicio }}">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-semibold small">
+                    <i class="bi bi-calendar-check"></i> Data Fim
+                </label>
+                <input type="date" name="data_fim" class="form-control form-control-sm"
+                       value="{{ data_fim }}">
+            </div>
+
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </div>
+
+        </div>
+
+        {# Atalhos de período rápido #}
+        <div class="mt-2 d-flex gap-2 flex-wrap align-items-center">
+            <small class="text-muted">Período rápido:</small>
+            {% for a in atalhos %}
+            <a href="?estacao={{ selecionada }}&data_inicio={{ a.inicio }}&data_fim={{ a.fim }}"
+               class="btn btn-outline-secondary btn-sm py-0">
+                {{ a.label }}
+            </a>
+            {% endfor %}
+        </div>
+    </form>
+
+    {% if dados.erro %}
+    <div class="alert alert-danger d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+        <span>{{ dados.erro }}</span>
+    </div>
+
+    {% else %}
+
+    {# ── Cabeçalho ───────────────────────────────────────────── #}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <h5 class="mb-0 fw-bold">
+            <i class="bi bi-broadcast-pin text-primary"></i>
+            {{ dados.estacao }}
+            <span class="text-muted fw-normal fs-6">— Cód. {{ dados.codigo }}</span>
+        </h5>
+        <div class="text-muted small text-end">
+            Última leitura: <strong>{{ dados.data_atual }}</strong>
+            &bull; {{ dados.total_medicoes }} medições no período
+        </div>
+    </div>
+
+    {# ── Cards KPI ───────────────────────────────────────────── #}
+    <div class="row g-3 mb-4">
+
+        <div class="col-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-label text-muted mb-1">Nível Atual</div>
+                        <div class="stat-value text-primary">
+                            {{ dados.nivel_atual }}
+                            <small class="fs-6 fw-normal text-muted"> cm</small>
+                        </div>
+                        <div class="small text-muted mt-1">{{ dados.data_atual }}</div>
+                    </div>
+                    <div class="bg-primary bg-opacity-10 rounded p-2">
+                        <i class="bi bi-water fs-3 text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-label text-muted mb-1">
+                            Vs. {{ dados.ano_anterior }}
+                        </div>
+                        {% if dados.variacao_anual is not None %}
+                            {% if dados.variacao_anual > 0 %}
+                            <div class="stat-value text-danger">
+                                +{{ dados.variacao_anual }}
+                                <small class="fs-6 fw-normal text-muted"> cm</small>
+                            </div>
+                            <div class="small text-danger mt-1">
+                                <i class="bi bi-arrow-up"></i> acima do ano anterior
+                            </div>
+                            {% elif dados.variacao_anual < 0 %}
+                            <div class="stat-value text-success">
+                                {{ dados.variacao_anual }}
+                                <small class="fs-6 fw-normal text-muted"> cm</small>
+                            </div>
+                            <div class="small text-success mt-1">
+                                <i class="bi bi-arrow-down"></i> abaixo do ano anterior
+                            </div>
+                            {% else %}
+                            <div class="stat-value text-secondary">Igual</div>
+                            {% endif %}
+                        {% else %}
+                        <div class="stat-value text-secondary">—</div>
+                        <div class="small text-muted mt-1">sem dados de {{ dados.ano_anterior }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="bg-warning bg-opacity-10 rounded p-2">
+                        <i class="bi bi-calendar2-week fs-3 text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-label text-muted mb-1">Máxima / Mínima</div>
+                        <div class="stat-value">
+                            <span class="text-danger">{{ dados.nivel_max }}</span>
+                            <small class="fs-5 text-muted fw-normal"> / </small>
+                            <span class="text-success">{{ dados.nivel_min }}</span>
+                            <small class="fs-6 fw-normal text-muted"> cm</small>
+                        </div>
+                        <div class="small text-muted mt-1">
+                            Amplitude: {{ dados.amplitude }} cm
+                        </div>
+                    </div>
+                    <div class="bg-danger bg-opacity-10 rounded p-2">
+                        <i class="bi bi-bar-chart-line fs-3 text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-label text-muted mb-1">Média do Período</div>
+                        <div class="stat-value text-secondary">
+                            {{ dados.nivel_medio }}
+                            <small class="fs-6 fw-normal text-muted"> cm</small>
+                        </div>
+                        {% if dados.nivel_ano_ant %}
+                        <div class="small text-muted mt-1">
+                            Média {{ dados.ano_anterior }}:
+                            <strong>{{ dados.nivel_ano_ant }} cm</strong>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="bg-secondary bg-opacity-10 rounded p-2">
+                        <i class="bi bi-calculator fs-3 text-secondary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {# ── Gráfico ─────────────────────────────────────────────── #}
+    <div class="card mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+            <span class="fw-semibold">
+                <i class="bi bi-graph-up me-1 text-primary"></i>
+                Evolução do Nível — médias diárias (cm)
+            </span>
+            <div class="d-flex gap-2">
+                <span class="badge text-bg-primary">{{ dados.ano_atual }}</span>
+                <span class="badge text-bg-warning">{{ dados.ano_anterior }}</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <canvas id="chartNivel" style="max-height:360px;"></canvas>
+        </div>
+    </div>
+
+    {# ── Tabela comparativa ──────────────────────────────────── #}
+    <div class="card">
+        <div class="card-header bg-white py-2">
+            <span class="fw-semibold">
+                <i class="bi bi-table me-1 text-primary"></i>
+                Histórico diário — {{ dados.ano_atual }} vs {{ dados.ano_anterior }}
+            </span>
+        </div>
+        <div class="table-responsive" style="max-height:380px; overflow-y:auto;">
+            <table class="table table-sm table-hover table-striped mb-0 table-sticky">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Data</th>
+                        <th class="text-end">{{ dados.ano_atual }} (cm)</th>
+                        <th class="text-end">{{ dados.ano_anterior }} (cm)</th>
+                        <th class="text-end">Diferença (cm)</th>
+                        <th>Tendência</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in dados.tabela %}
+                    <tr>
+                        <td class="fw-semibold">{{ row.data }}</td>
+                        <td class="text-end">{{ row.nivel_atual }}</td>
+                        <td class="text-end text-muted">
+                            {% if row.nivel_ant %}{{ row.nivel_ant }}{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end fw-semibold">
+                            {% if row.diff is not None %}
+                                {% if row.diff > 0 %}
+                                <span class="text-danger">+{{ row.diff }}</span>
+                                {% elif row.diff < 0 %}
+                                <span class="text-success">{{ row.diff }}</span>
+                                {% else %}
+                                <span class="text-muted">0</span>
+                                {% endif %}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            {% if row.diff is not None %}
+                                {% if row.diff > 50 %}
+                                <span class="badge text-bg-danger">Muito acima</span>
+                                {% elif row.diff > 10 %}
+                                <span class="badge text-bg-warning text-dark">Acima</span>
+                                {% elif row.diff < -50 %}
+                                <span class="badge text-bg-success">Muito abaixo</span>
+                                {% elif row.diff < -10 %}
+                                <span class="badge text-bg-info text-dark">Abaixo</span>
+                                {% else %}
+                                <span class="badge text-bg-secondary">Normal</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
 {% endblock %}
 
-{% block content %}
+{% block scripts %}
+{% if not dados.erro %}
+<script>
+const labels    = {{ chart_labels|safe }};
+const dataAtual = {{ chart_atual|safe }};
+const dataAnt   = {{ chart_ant|safe }};
 
-<div class="container mt-5 text-center">
-
-    <h1 class="display-3">
-        Olá Mundo 👋
-    </h1>
-
-    <p class="lead">
-        Meu primeiro projeto Django está funcionando.
-    </p>
-
-</div>
-
+new Chart(document.getElementById('chartNivel'), {
+    type: 'line',
+    data: {
+        labels,
+        datasets: [
+            {
+                label: '{{ dados.ano_atual }}',
+                data: dataAtual,
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13,110,253,0.08)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: labels.length > 45 ? 0 : 3,
+                borderWidth: 2,
+            },
+            {
+                label: '{{ dados.ano_anterior }}',
+                data: dataAnt,
+                borderColor: '#fd7e14',
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0.3,
+                borderDash: [6, 4],
+                pointRadius: 0,
+                borderWidth: 2,
+            },
+        ],
+    },
+    options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+                callbacks: {
+                    label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y} cm`
+                }
+            }
+        },
+        scales: {
+            y: {
+                title: { display: true, text: 'Nível (cm)' },
+                grid: { color: 'rgba(0,0,0,0.05)' },
+            },
+            x: {
+                ticks: { maxTicksLimit: 12, maxRotation: 45 },
+                grid: { display: false },
+            }
+        }
+    }
+});
+</script>
+{% endif %}
 {% endblock %}
